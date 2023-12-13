@@ -1,0 +1,7 @@
+{
+  "history_forecast_ratio": 20,
+  "lags_forecast_ratio": 3,
+  "output_chunk_length": 1,
+  "use_exogenous": true,
+  "random_state": 0
+}
