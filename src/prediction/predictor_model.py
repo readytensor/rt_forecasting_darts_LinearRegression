@@ -153,7 +153,7 @@ class Forecaster:
             lags = self.data_schema.forecast_length * lags_forecast_ratio
             self.lags = lags
 
-            if self.data_schema.past_covariates:
+            if use_exogenous and self.data_schema.past_covariates:
                 self.lags_past_covariates = lags
 
         self.model = LinearRegressionModel(
