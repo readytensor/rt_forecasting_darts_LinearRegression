@@ -39,12 +39,6 @@ class Forecaster:
         lags_past_covariates: Union[
             int, List[int], Dict[str, Union[int, List[int]]], None
         ] = None,
-        lags_future_covariates: Union[
-            Tuple[int, int],
-            List[int],
-            Dict[str, Union[Tuple[int, int], List[int]]],
-            None,
-        ] = None,
         likelihood: Optional[str] = None,
         quantiles: Optional[List[float]] = None,
         multi_models: Optional[bool] = True,
@@ -105,16 +99,6 @@ class Forecaster:
                 The key 'default_lags' can be used to provide default lags for un-specified components.
                 Raises and error if some components are missing and the 'default_lags' key is not provided.
 
-            lags_future_covariates (Union[Tuple[int, int], List[int], Dict[str, Union[Tuple[int, int], List[int]]], None]):
-                Lagged future_covariates values used to predict the next time step/s.
-                If a tuple of (past, future), both values must be > 0. Uses the last n=past past lags and n=future future lags; e.g.
-                (-past, -(past - 1), …, -1, 0, 1, …. future - 1), where 0 corresponds the first predicted time step of each sample.
-                If a list of integers, uses only the specified values as lags.
-                If a dictionary, the keys correspond to the future_covariates component names (of the first series when using multiple series)
-                and the values correspond to the component lags (tuple or list of integers).
-                The key 'default_lags' can be used to provide default lags for un-specified components.
-                Raises and error if some components are missing and the 'default_lags' key is not provided.
-
             likelihood (Optional[str]):
                 Can be set to quantile or poisson.
                 If set, the model will be probabilistic, allowing sampling at prediction time.
@@ -150,7 +134,6 @@ class Forecaster:
         self.lags_forecast_ratio = lags_forecast_ratio
         self.lags = lags
         self.lags_past_covariates = lags_past_covariates
-        self.lags_future_covariates = lags_future_covariates
         self.likelihood = likelihood
         self.quantiles = quantiles
         self.multi_models = multi_models
@@ -173,17 +156,10 @@ class Forecaster:
             if self.data_schema.past_covariates:
                 self.lags_past_covariates = lags
 
-        if self.data_schema.future_covariates or self.data_schema.time_col_dtype in [
-            "DATE",
-            "DATETIME",
-        ]:
-            self.lags_future_covariates = (0, 1)
-
         self.model = LinearRegressionModel(
             output_chunk_length=self.output_chunk_length,
             lags=self.lags,
             lags_past_covariates=self.lags_past_covariates,
-            lags_future_covariates=self.lags_future_covariates,
             likelihood=self.likelihood,
             multi_models=self.multi_models,
             quantiles=self.quantiles,
@@ -336,12 +312,10 @@ class Forecaster:
 
         if not self.use_exogenous:
             past_covariates = None
-            future_covariates = None
 
         self.model.fit(
             targets,
             past_covariates=past_covariates,
-            future_covariates=future_covariates,
         )
 
         self._is_trained = True
@@ -368,7 +342,6 @@ class Forecaster:
             n=self.data_schema.forecast_length,
             series=self.targets_series,
             past_covariates=self.past_covariates,
-            future_covariates=self.future_covariates,
         )
         prediction_values = []
         for index, prediction in enumerate(predictions):
