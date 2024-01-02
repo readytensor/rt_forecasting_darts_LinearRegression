@@ -3,14 +3,12 @@ import warnings
 import joblib
 import numpy as np
 import pandas as pd
-from typing import Union, List, Dict, Tuple, Optional
+from typing import Union, List, Dict, Optional, Tuple
 from darts.models.forecasting.linear_regression_model import LinearRegressionModel
 from darts import TimeSeries
 from schema.data_schema import ForecastingSchema
 from sklearn.exceptions import NotFittedError
-from torch import cuda
 from sklearn.preprocessing import MinMaxScaler
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 
 warnings.filterwarnings("ignore")
@@ -38,6 +36,12 @@ class Forecaster:
         lags: Union[int, List[int], Dict[str, Union[int, List[int]]], None] = None,
         lags_past_covariates: Union[
             int, List[int], Dict[str, Union[int, List[int]]], None
+        ] = None,
+        lags_future_covariates: Union[
+            Tuple[int, int],
+            List[int],
+            Dict[str, Union[Tuple[int, int], List[int]]],
+            None,
         ] = None,
         likelihood: Optional[str] = None,
         quantiles: Optional[List[float]] = None,
@@ -77,8 +81,6 @@ class Forecaster:
 
                 Note: If one of the lags parameter is not set, this parameter has to be set, otherwise an error will be raised.
 
-
-
             lags (Union[int, List[int], Dict[str, Union[int, List[int]]], None]):
                 Lagged target series values used to predict the next time step/s.
                 If an integer, must be > 0. Uses the last n=lags past lags; e.g. (-1, -2, …, -lags),
@@ -96,6 +98,16 @@ class Forecaster:
                 If a list of integers, each value must be < 0. Uses only the specified values as lags.
                 If a dictionary, the keys correspond to the past_covariates component names (of the first series when using multiple series)
                 and the values correspond to the component lags (integer or list of integers).
+                The key 'default_lags' can be used to provide default lags for un-specified components.
+                Raises and error if some components are missing and the 'default_lags' key is not provided.
+
+            lags_future_covariates (Union[Tuple[int, int], List[int], Dict[str, Union[Tuple[int, int], List[int]]], None]):
+                Lagged future_covariates values used to predict the next time step/s. If a tuple of (past, future), both values must be > 0.
+                Uses the last n=past past lags and n=future future lags; e.g. (-past, -(past - 1), …, -1, 0, 1, …. future - 1),
+                where 0 corresponds the first predicted time step of each sample.
+                If a list of integers, uses only the specified values as lags.
+                If a dictionary, the keys correspond to the future_covariates component names (of the first series when using multiple series)
+                and the values correspond to the component lags (tuple or list of integers).
                 The key 'default_lags' can be used to provide default lags for un-specified components.
                 Raises and error if some components are missing and the 'default_lags' key is not provided.
 
@@ -134,6 +146,7 @@ class Forecaster:
         self.lags_forecast_ratio = lags_forecast_ratio
         self.lags = lags
         self.lags_past_covariates = lags_past_covariates
+        self.lags_future_covariates = lags_future_covariates
         self.likelihood = likelihood
         self.quantiles = quantiles
         self.multi_models = multi_models
@@ -156,10 +169,22 @@ class Forecaster:
             if use_exogenous and self.data_schema.past_covariates:
                 self.lags_past_covariates = lags
 
+            if use_exogenous and (
+                self.data_schema.future_covariates
+                or self.data_schema.time_col_dtype in ["DATE", "DATETIME"]
+            ):
+                self.lags_future_covariates = list(
+                    range(-lags, data_schema.forecast_length)
+                )
+
+        if not self.output_chunk_length:
+            self.output_chunk_length = data_schema.forecast_length
+
         self.model = LinearRegressionModel(
             output_chunk_length=self.output_chunk_length,
             lags=self.lags,
             lags_past_covariates=self.lags_past_covariates,
+            lags_future_covariates=self.lags_future_covariates,
             likelihood=self.likelihood,
             multi_models=self.multi_models,
             quantiles=self.quantiles,
@@ -191,7 +216,7 @@ class Forecaster:
         future = []
 
         future_covariates_names = data_schema.future_covariates
-        if data_schema.time_col_dtype == "DATE":
+        if data_schema.time_col_dtype in ["DATE", "DATETIME"]:
             date_col = pd.to_datetime(history[data_schema.time_col])
             year_col = date_col.dt.year
             month_col = date_col.dt.month
@@ -228,8 +253,16 @@ class Forecaster:
             )
 
             scalers[index] = scaler
+            static_covariates = None
+            if self.use_exogenous and self.data_schema.static_covariates:
+                static_covariates = s[self.data_schema.static_covariates]
 
-            target = TimeSeries.from_dataframe(s, value_cols=data_schema.target)
+            target = TimeSeries.from_dataframe(
+                s,
+                value_cols=data_schema.target,
+                static_covariates=static_covariates.iloc[0],
+            )
+
             targets.append(target)
 
             if data_schema.past_covariates:
@@ -283,6 +316,7 @@ class Forecaster:
             past = None
         if not future:
             future = None
+
         return targets, past, future
 
     def fit(
@@ -312,10 +346,12 @@ class Forecaster:
 
         if not self.use_exogenous:
             past_covariates = None
+            future_covariates = None
 
         self.model.fit(
             targets,
             past_covariates=past_covariates,
+            future_covariates=future_covariates,
         )
 
         self._is_trained = True
@@ -342,6 +378,7 @@ class Forecaster:
             n=self.data_schema.forecast_length,
             series=self.targets_series,
             past_covariates=self.past_covariates,
+            future_covariates=self.future_covariates,
         )
         prediction_values = []
         for index, prediction in enumerate(predictions):
