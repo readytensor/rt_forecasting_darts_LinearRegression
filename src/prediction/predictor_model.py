@@ -261,7 +261,7 @@ class Forecaster:
                 s,
                 value_cols=data_schema.target,
                 static_covariates=static_covariates.iloc[0]
-                if static_covariates
+                if static_covariates is not None
                 else None,
             )
 
