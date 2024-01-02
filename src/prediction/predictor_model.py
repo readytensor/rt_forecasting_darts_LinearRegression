@@ -260,7 +260,9 @@ class Forecaster:
             target = TimeSeries.from_dataframe(
                 s,
                 value_cols=data_schema.target,
-                static_covariates=static_covariates.iloc[0],
+                static_covariates=static_covariates.iloc[0]
+                if static_covariates
+                else None,
             )
 
             targets.append(target)
