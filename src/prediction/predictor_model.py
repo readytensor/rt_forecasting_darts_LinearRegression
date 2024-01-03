@@ -129,7 +129,7 @@ class Forecaster:
                 If True, and static covariates are available at fitting time, will enforce that all target series have the same static covariate dimensionality in fit() and predict().
 
             use_exogenous (bool):
-                Indicated if past covariates are used or not.
+                Indicates if covariates are used or not.
 
             random_state (Optional[int]):
                 Sets the underlying random seed at model initialization time.
