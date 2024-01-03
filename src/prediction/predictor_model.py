@@ -76,9 +76,8 @@ class Forecaster:
                 history length will be 20*10 = 200 samples.
 
             lags_forecast_ratio (int):
-                Sets the lags and lags_past_covariates parameters depending on the forecast horizon.
+                Sets the lags, lags_past_covariates and lags_future_covariates parameters depending on the forecast horizon.
                 lags = lags_past_covariates = forecast horizon * lags_forecast_ratio
-
                 Note: If one of the lags parameter is not set, this parameter has to be set, otherwise an error will be raised.
 
             lags (Union[int, List[int], Dict[str, Union[int, List[int]]], None]):
@@ -110,6 +109,7 @@ class Forecaster:
                 and the values correspond to the component lags (tuple or list of integers).
                 The key 'default_lags' can be used to provide default lags for un-specified components.
                 Raises and error if some components are missing and the 'default_lags' key is not provided.
+                Defaults to list(range(0, forecast_horizon))
 
             likelihood (Optional[str]):
                 Can be set to quantile or poisson.
@@ -169,13 +169,15 @@ class Forecaster:
             if use_exogenous and self.data_schema.past_covariates:
                 self.lags_past_covariates = lags
 
-            if use_exogenous and (
+        if (
+            use_exogenous
+            and not lags_future_covariates
+            and (
                 self.data_schema.future_covariates
                 or self.data_schema.time_col_dtype in ["DATE", "DATETIME"]
-            ):
-                self.lags_future_covariates = list(
-                    range(-lags, data_schema.forecast_length)
-                )
+            )
+        ):
+            self.lags_future_covariates = list(range(0, data_schema.forecast_length))
 
         if not self.output_chunk_length:
             self.output_chunk_length = data_schema.forecast_length
