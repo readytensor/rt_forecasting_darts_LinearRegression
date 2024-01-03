@@ -16,6 +16,14 @@ The following are the requirements for using your data with this model:
 
 ---
 
+### Covariates Support:
+
+past :white_check_mark:
+future :white_check_mark:
+static :white_check_mark:
+
+---
+
 Here are the highlights of this implementation: <br/>
 
 - A **Linear Regression Forecaster** algorithm built using **Darts**
