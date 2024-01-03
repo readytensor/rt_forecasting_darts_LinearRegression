@@ -19,7 +19,9 @@ The following are the requirements for using your data with this model:
 ### Covariates Support:
 
 past :white_check_mark:
+
 future :white_check_mark:
+
 static :white_check_mark:
 
 ---
