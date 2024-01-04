@@ -179,6 +179,10 @@ class Forecaster:
         ):
             self.lags_future_covariates = list(range(0, data_schema.forecast_length))
 
+        if not use_exogenous:
+            self.lags_past_covariates = None
+            self.lags_future_covariates = None
+
         if not self.output_chunk_length:
             self.output_chunk_length = data_schema.forecast_length
 
