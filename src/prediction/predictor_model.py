@@ -417,7 +417,7 @@ class Forecaster:
         self.data_schema = data_schema
         self.targets_series = targets
         self.past_covariates = past_covariates
-        self.future_covariates = future_covariates
+        self.training_future_covariates = future_covariates
 
     def predict(
         self, test_data: pd.DataFrame, prediction_col_name: str
