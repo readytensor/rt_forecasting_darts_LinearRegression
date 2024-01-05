@@ -1,10 +1,10 @@
 {
   "history_forecast_ratio": 20,
-  "lags_forecast_ratio": 5,
+  "lags_forecast_ratio": 3,
   "lags_past_covariates": null,
   "lags_future_covariates": null,
   "output_chunk_length": null,
-  "use_exogenous": false,
-  "use_static_covariates": false,
+  "use_exogenous": true,
+  "use_static_covariates": true,
   "random_state": 0
 }

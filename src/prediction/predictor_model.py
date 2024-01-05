@@ -156,7 +156,6 @@ class Forecaster:
         self.kwargs = kwargs
         self.history_length = None
         self._is_trained = False
-        self.freq = self.map_frequency(data_schema.frequency)
 
         if history_forecast_ratio:
             self.history_length = (
@@ -180,10 +179,6 @@ class Forecaster:
         ):
             self.lags_future_covariates = list(range(0, data_schema.forecast_length))
 
-        if not use_exogenous:
-            self.lags_past_covariates = None
-            self.lags_future_covariates = None
-
         if not self.output_chunk_length:
             self.output_chunk_length = data_schema.forecast_length
 
@@ -199,34 +194,6 @@ class Forecaster:
             random_state=self.random_state,
             **kwargs,
         )
-
-    def map_frequency(self, frequency: str) -> str:
-        """
-        Maps the frequency in the data schema to the frequency expected by GluonTS.
-
-        Args:
-            frequency (str): The frequency from the schema.
-
-        Returns (str): The mapped frequency.
-        """
-        frequency = frequency.lower()
-        frequency = frequency.split("frequency.")[1]
-        if frequency == "yearly":
-            return "Y"
-        if frequency == "quarterly":
-            return "Q"
-        if frequency == "monthly":
-            return "M"
-        if frequency == "weekly":
-            return "W"
-        if frequency == "daily":
-            return "D"
-        if frequency == "hourly":
-            return "H"
-        if frequency == "minutely":
-            return "min"
-        if frequency in ["secondly", "other"]:
-            return "S"
 
     def _prepare_data(
         self,
@@ -296,7 +263,6 @@ class Forecaster:
                 if static_covariates is not None
                 else None,
             )
-            print(target.time_index)
 
             targets.append(target)
 
@@ -451,7 +417,7 @@ class Forecaster:
         self.data_schema = data_schema
         self.targets_series = targets
         self.past_covariates = past_covariates
-        self.training_future_covariates = future_covariates
+        self.future_covariates = future_covariates
 
     def predict(
         self, test_data: pd.DataFrame, prediction_col_name: str
@@ -467,7 +433,7 @@ class Forecaster:
         if not self._is_trained:
             raise NotFittedError("Model is not fitted yet.")
 
-        future_covariates = self._prepare_test_data(data=test_data)
+        future_covariates = self._prepare_test_data(test_data)
 
         predictions = self.model.predict(
             n=self.data_schema.forecast_length,
@@ -529,6 +495,7 @@ def train_predictor_model(
         history (pd.DataFrame): The training data inputs.
         data_schema (ForecastingSchema): Schema of the training data.
         hyperparameters (dict): Hyperparameters for the Forecaster.
+        test_dataframe (pd.DataFrame): The testing data (needed only if the data contains future covariates).
 
     Returns:
         'Forecaster': The Forecaster model
