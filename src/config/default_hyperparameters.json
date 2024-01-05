@@ -4,7 +4,7 @@
   "lags_past_covariates": null,
   "lags_future_covariates": null,
   "output_chunk_length": null,
-  "use_exogenous": true,
-  "use_static_covariates": true,
+  "use_exogenous": false,
+  "use_static_covariates": false,
   "random_state": 0
 }

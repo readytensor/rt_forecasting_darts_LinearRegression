@@ -156,6 +156,7 @@ class Forecaster:
         self.kwargs = kwargs
         self.history_length = None
         self._is_trained = False
+        self.freq = self.map_frequency(data_schema.frequency)
 
         if history_forecast_ratio:
             self.history_length = (
@@ -199,12 +200,40 @@ class Forecaster:
             **kwargs,
         )
 
+    def map_frequency(self, frequency: str) -> str:
+        """
+        Maps the frequency in the data schema to the frequency expected by GluonTS.
+
+        Args:
+            frequency (str): The frequency from the schema.
+
+        Returns (str): The mapped frequency.
+        """
+        frequency = frequency.lower()
+        frequency = frequency.split("frequency.")[1]
+        if frequency == "yearly":
+            return "Y"
+        if frequency == "quarterly":
+            return "Q"
+        if frequency == "monthly":
+            return "M"
+        if frequency == "weekly":
+            return "W"
+        if frequency == "daily":
+            return "D"
+        if frequency == "hourly":
+            return "H"
+        if frequency == "minutely":
+            return "min"
+        if frequency in ["secondly", "other"]:
+            return "S"
+
     def _prepare_data(
         self,
         history: pd.DataFrame,
         data_schema: ForecastingSchema,
         history_length: int = None,
-    ) -> pd.DataFrame:
+    ) -> Tuple[List, List, List]:
         """
         Puts the data into the expected shape by the forecaster.
         Drops the time column and puts all the target series as columns in the dataframe.
@@ -215,7 +244,7 @@ class Forecaster:
             history_length (int): The number of historical timesteps to be considered.
 
         Returns:
-            pd.DataFrame: The processed data.
+            Tuple[List, List, List]: Target, Past covariates and Future covariates.
         """
         targets = []
         past = []
@@ -267,6 +296,7 @@ class Forecaster:
                 if static_covariates is not None
                 else None,
             )
+            print(target.time_index)
 
             targets.append(target)
 
@@ -321,7 +351,16 @@ class Forecaster:
     def _prepare_test_data(
         self,
         data: pd.DataFrame,
-    ):
+    ) -> List:
+        """
+        Prepares testing data.
+
+        Args:
+            data (pd.DataFrame): Testing data.
+
+        Returns (List): Training and testing future covariates concatenated together.
+
+        """
         future = []
         data_schema = self.data_schema
         future_covariates_names = data_schema.future_covariates
