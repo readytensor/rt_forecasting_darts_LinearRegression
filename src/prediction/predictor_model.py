@@ -495,7 +495,6 @@ def train_predictor_model(
         history (pd.DataFrame): The training data inputs.
         data_schema (ForecastingSchema): Schema of the training data.
         hyperparameters (dict): Hyperparameters for the Forecaster.
-        test_dataframe (pd.DataFrame): The testing data (needed only if the data contains future covariates).
 
     Returns:
         'Forecaster': The Forecaster model
