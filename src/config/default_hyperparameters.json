@@ -1,5 +1,5 @@
 {
-  "history_forecast_ratio": 20,
+  "history_forecast_ratio": null,
   "lags_forecast_ratio": 3,
   "lags_past_covariates": null,
   "lags_future_covariates": null,
