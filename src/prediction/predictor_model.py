@@ -9,9 +9,11 @@ from darts import TimeSeries
 from schema.data_schema import ForecastingSchema
 from sklearn.exceptions import NotFittedError
 from sklearn.preprocessing import MinMaxScaler
+from logger import get_logger
 
 
 warnings.filterwarnings("ignore")
+logger = get_logger(task_name="model")
 
 
 PREDICTOR_FILE_NAME = "predictor.joblib"
@@ -181,19 +183,6 @@ class Forecaster:
 
         if not self.output_chunk_length:
             self.output_chunk_length = data_schema.forecast_length
-
-        self.model = LinearRegressionModel(
-            output_chunk_length=self.output_chunk_length,
-            lags=self.lags,
-            lags_past_covariates=self.lags_past_covariates,
-            lags_future_covariates=self.lags_future_covariates,
-            likelihood=self.likelihood,
-            multi_models=self.multi_models,
-            quantiles=self.quantiles,
-            use_static_covariates=self.use_static_covariates,
-            random_state=self.random_state,
-            **kwargs,
-        )
 
     def _prepare_data(
         self,
@@ -384,6 +373,31 @@ class Forecaster:
 
         return future
 
+    def _validate_lags_and_history_length(self, series_length: int):
+        """
+        Validate the value of lags and that history length is at least double the forecast horizon.
+        If the provided lags value is invalid (too large), lags are set to the largest possible value.
+
+        Args:
+            series_length (int): The length of the history.
+
+        Returns: None
+        """
+        forecast_length = self.data_schema.forecast_length
+        if series_length < 2 * forecast_length:
+            raise ValueError(
+                f"Training series is too short. History should be at least double the forecast horizon. history_length = ({series_length}), forecast horizon = ({self.data_schema.forecast_length})"
+            )
+
+        if self.lags > series_length - forecast_length:
+            self.lags = series_length - forecast_length
+            logger.warning(
+                "The provided lags value is greater than the available history length."
+                f" Lags are set to to (history length - forecast horizon - 1) = {self.lags}"
+            )
+            if self.lags_past_covariates:
+                self.lags_past_covariates = self.lags
+
     def fit(
         self,
         history: pd.DataFrame,
@@ -402,6 +416,19 @@ class Forecaster:
         targets, past_covariates, future_covariates = self._prepare_data(
             history=history,
             data_schema=data_schema,
+        )
+
+        self.model = LinearRegressionModel(
+            output_chunk_length=self.output_chunk_length,
+            lags=self.lags,
+            lags_past_covariates=self.lags_past_covariates,
+            lags_future_covariates=self.lags_future_covariates,
+            likelihood=self.likelihood,
+            multi_models=self.multi_models,
+            quantiles=self.quantiles,
+            use_static_covariates=self.use_static_covariates,
+            random_state=self.random_state,
+            **self.kwargs,
         )
 
         self.model.fit(
