@@ -418,6 +418,8 @@ class Forecaster:
             data_schema=data_schema,
         )
 
+        self._validate_lags_and_history_length(series_length=len(targets[0]))
+
         self.model = LinearRegressionModel(
             output_chunk_length=self.output_chunk_length,
             lags=self.lags,
